@@ -1,0 +1,29 @@
+Keyword int
+Identifier a
+Operator =
+Number 5
+Operator ;
+
+Identifier a
+Operator =
+Number 3
+Operator ;
+
+Keyword if
+Operator (  
+Identifier a
+Operator >
+Number 2
+Operator )
+Operator {
+Keyword int
+Identifier b
+Operator =
+Number 1
+Operator ;
+
+Identifier b
+Operator =
+Number 2
+Operator ;
+Operator }
