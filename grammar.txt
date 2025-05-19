@@ -1,2 +1,5 @@
-S -> S a | S b | c | d
-A -> A x | y
+E -> T Ep
+Ep -> + T Ep | ε
+T -> F Tp
+Tp -> * F Tp | ε
+F -> n

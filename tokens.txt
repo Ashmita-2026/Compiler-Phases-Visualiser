@@ -1,0 +1,27 @@
+[Keyword]  -->  int
+[Identifier] --> a
+[Operator]  -->  =
+[Number]    -->  5
+[Separator] -->  ;
+
+[Identifier] --> a
+[Operator]  --> =
+[Identifier] --> a
+[Operator]  --> +
+[Number]    --> 3
+[Separator] --> ;
+
+[Keyword]  --> if
+[Separator] --> (
+[Identifier] --> a
+[Operator]  --> >
+[Number]    --> 2
+[Separator] --> )
+[Separator] --> {
+[Identifier] --> a
+[Operator]  --> =
+[Identifier] --> a
+[Operator]  --> +
+[Number]    --> 1
+[Separator] --> ;
+[Separator] --> }
