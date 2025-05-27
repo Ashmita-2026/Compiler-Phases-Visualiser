@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Lexical Analyzer</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      display: flex;
+      height: 100vh;
+    }
+
+    #inputSection, #tokenSection {
+      padding: 1rem;
+      box-sizing: border-box;
+    }
+
+    #inputSection {
+      flex: 4;
+      display: flex;
+      flex-direction: column;
+      background-color: #fafafa;
+      border-right: 1px solid #ccc;
+    }
+
+    #tokenSection {
+      flex: 6;
+      background: #f9f9f9;
+      overflow-y: auto;
+    }
+
+    textarea {
+      flex: 1;
+      font-family: monospace;
+      font-size: 14px;
+      width: 100%;
+      resize: none;
+      padding: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    button {
+      margin-top: 0.5rem;
+      padding: 0.5rem;
+      font-size: 16px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    h2 {
+      margin-bottom: 0.5rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 0.5rem;
+      text-align: left;
+    }
+
+    th {
+      background-color: #007bff;
+      color: white;
+    }
+
+    tr:nth-child(even) {
+      background-color: #f2f2f2;
+    }
+
+    #tokenTableContainer {
+      padding: 0 1rem 1rem 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="inputSection">
+    <h2> C Code</h2>
+    <textarea id="codeInput" placeholder="Type or paste your C code here..."></textarea>
+    <button onclick="runLexer()">Analyze Lexically</button>
+    <button onclick="goToSyntax()">Continue</button>
+  </div>
+
+  <div id="tokenSection">
+    <h2>Tokens</h2>
+    <div id="tokenTableContainer"></div>
+  </div>
+
+  <script>
+    const keywords = ["int", "float", "char", "if", "else", "return", "for", "while", "void"];
+    const operators = ["+", "-", "*", "/", "%", "=", "==", "!=", "<", ">", "<=", ">=", "++", "--"];
+    const delimiters = [";", ",", "(", ")", "{", "}"];
+
+    const tokenPatterns = [
+      { type: "keyword", regex: new RegExp("^(" + keywords.join("|") + ")\\b") },
+      { type: "identifier", regex: /^[a-zA-Z_][a-zA-Z0-9_]*/ },
+      { type: "number", regex: /^\d+(\.\d+)?/ },
+      { type: "operator", regex: new RegExp("^(" + operators.map(op => op.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')).join("|") + ")") },
+      { type: "delimiter", regex: new RegExp("^(" + delimiters.map(d => "\\" + d).join("|") + ")") },
+      { type: "whitespace", regex: /^\s+/ },
+      { type: "string", regex: /^"([^"\\]|\\.)*"/ },
+      { type: "char", regex: /^'([^'\\]|\\.)'/ }
+    ];
+
+    function preprocessCode(code) {
+      const lines = code.split("\n");
+      return lines.filter(line =>
+        !line.trim().startsWith("#include") &&
+        !line.includes("main()")
+      ).join("\n");
+    }
+
+    function tokenize(text) {
+      const tokens = [];
+      let pos = 0;
+      while (pos < text.length) {
+        let matched = false;
+        for (const pattern of tokenPatterns) {
+          const match = pattern.regex.exec(text.substring(pos));
+          if (match) {
+            const value = match[0];
+            if (pattern.type !== "whitespace") {
+              tokens.push({ type: pattern.type, value });
+            }
+            pos += value.length;
+            matched = true;
+            break;
+          }
+        }
+        if (!matched) {
+          tokens.push({ type: "unknown", value: text[pos] });
+          pos++;
+        }
+      }
+      return tokens;
+    }
+
+    function runLexer() {
+      let code = document.getElementById("codeInput").value;
+      code = preprocessCode(code);  // Remove unwanted lines
+      localStorage.setItem("cCode", code);
+      const tokens = tokenize(code);
+
+      const tableHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Token Type</th>
+              <th>Lexeme</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tokens.map((t, i) => `
+              <tr>
+                <td>${i + 1}</td>
+                <td>${t.type.toUpperCase()}</td>
+                <td>${t.value.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
+
+      document.getElementById("tokenTableContainer").innerHTML = tableHTML;
+    }
+
+    function goToSyntax() {
+      const code = document.getElementById("codeInput").value;
+      localStorage.setItem("cCode", code);
+      window.location.href = "syntax.html";
+    }
+
+    window.onload = function () {
+      const code = localStorage.getItem("cCode") || "";
+      document.getElementById("codeInput").value = code;
+      runLexer();
+    };
+  </script>
+</body>
+</html>
