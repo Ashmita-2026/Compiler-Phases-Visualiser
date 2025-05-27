@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Syntax Analysis & Parse Tree Visualizer</title>
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css"
+  />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f5f5f5;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    #editor, #parseExpression {
+      border: 1px solid #ccc;
+      font-family: monospace;
+      font-size: 16px;
+      padding: 10px;
+      box-sizing: border-box;
+      border-radius: 4px;
+      background: white;
+    }
+    #editor {
+      height: 200px;
+    }
+    #parseExpression {
+      width: 100%;
+      height: 100px;
+      resize: vertical;
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px 20px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      border-radius: 4px;
+      display: inline-block;
+    }
+    #errors, #exprErrors {
+      margin-top: 20px;
+      padding: 10px;
+      border-radius: 4px;
+      display: none;
+    }
+    #errors.error, #exprErrors.error {
+      background-color: #fff3f3;
+      color: #b30000;
+      border: 1px solid #b30000;
+    }
+    #errors.success, #exprErrors.success {
+      background-color: #e6ffed;
+      color: #2d7a2d;
+      border: 1px solid #2d7a2d;
+    }
+    #tree {
+      margin-top: 20px;
+      width: 100%;
+      height: 600px;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      overflow: auto;
+    }
+    svg {
+      font-family: monospace;
+      user-select: none;
+    }
+    #syntaxSection, #parseTreeSection {
+      max-width: 900px;
+      margin: 0 auto 40px;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+  <h1 id="mainHeading">Syntax Analysis & Parse Tree Visualizer</h1>
+
+  <div id="syntaxSection">
+    <h2>Syntax Analysis</h2>
+    <textarea id="editor"></textarea>
+    <button id="analyzeBtn">Analyze Syntax</button>
+    <br>
+    <button id="continueBtn">Continue</button>
+    <div id="errors"></div>
+  </div>
+
+  <div id="parseTreeSection">
+    <h2>Parse Tree Generator</h2>
+    <textarea id="parseExpression">a = b + c * d;</textarea>
+    <br>
+    <button id="checkExprSyntaxBtn">Check Expression Syntax</button>
+    <button id="generateBtn">Generate Parse Tree</button>
+    <div id="exprErrors"></div>
+    <svg id="tree"></svg>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/clike/clike.min.js"></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+
+  <script>
+    const editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
+      mode: "text/x-csrc",
+      lineNumbers: true,
+      theme: "default",
+      viewportMargin: Infinity,
+    });
+
+    window.onload = function () {
+      const savedCode = localStorage.getItem("cCode") || "";
+      if (savedCode) editor.setValue(savedCode);
+      generateParseTree();
+    };
+
+    document.getElementById("analyzeBtn").addEventListener("click", () => {
+      analyzeSyntax();
+    });
+
+    document.getElementById("continueBtn").addEventListener("click", () => {
+      const code = editor.getValue();
+      localStorage.setItem("cCode", code);
+      window.location.href = "semantic.html";
+    });
+
+    document.getElementById("checkExprSyntaxBtn").addEventListener("click", () => {
+      const expr = document.getElementById("parseExpression").value;
+      const errors = analyzeExpressionSyntax(expr);
+      showExprErrors(errors);
+    });
+
+    document.getElementById("generateBtn").addEventListener("click", generateParseTree);
+
+    function analyzeSyntax() {
+      const code = editor.getValue();
+      localStorage.setItem("cCode", code);
+
+      const errors = [];
+      const stack = [];
+      const brackets = { "(": ")", "{": "}", "[": "]" };
+
+      for (let i = 0; i < code.length; i++) {
+        const char = code[i];
+        if (brackets[char]) {
+          stack.push(brackets[char]);
+        } else if (Object.values(brackets).includes(char)) {
+          if (stack.length === 0 || char !== stack.pop()) {
+            errors.push("Unbalanced or mismatched brackets.");
+            break;
+          }
+        }
+      }
+      if (stack.length > 0) errors.push("Missing closing bracket(s).");
+
+      const lines = code.split("\n");
+      const mainFuncPattern = /^\s*(int|void)\s+main\s*\(\s*(void)?\s*\)\s*\{?/;
+
+      let hasMain = false;
+
+      lines.forEach((line, i) => {
+        const trimmed = line.trim();
+
+        if (mainFuncPattern.test(trimmed)) hasMain = true;
+
+        if (
+          trimmed &&
+          !trimmed.startsWith("//") &&
+          !trimmed.startsWith("#") && // skip preprocessor
+          !trimmed.endsWith(";") &&
+          !trimmed.endsWith("{") &&
+          !trimmed.endsWith("}") &&
+          !trimmed.startsWith("if") &&
+          !trimmed.startsWith("else") &&
+          !trimmed.startsWith("while") &&
+          !trimmed.startsWith("for") &&
+          !trimmed.includes("for(") &&
+          !trimmed.includes("if(") &&
+          !trimmed.includes("while(") &&
+          !trimmed.match(/^\w+\s+\w+\s*\(.*\)\s*$/) // function signature
+        ) {
+          errors.push(`Line ${i + 1}: Possibly missing semicolon. => "${trimmed}"`);
+        }
+      });
+
+      if (!hasMain) {
+        errors.push("Missing valid 'int main()' function declaration.");
+      }
+
+      const errorDiv = document.getElementById("errors");
+      if (errors.length) {
+        errorDiv.style.display = "block";
+        errorDiv.className = "error";
+        errorDiv.innerHTML = errors.map(e => `<p>${e}</p>`).join("");
+      } else {
+        errorDiv.style.display = "block";
+        errorDiv.className = "success";
+        errorDiv.textContent = "No syntax issues found!";
+      }
+
+      return errors.length === 0;
+    }
+
+    function analyzeExpressionSyntax(expr) {
+      const errors = [];
+      const stack = [];
+      const brackets = { "(": ")" };
+
+      for (let i = 0; i < expr.length; i++) {
+        const char = expr[i];
+        if (brackets[char]) {
+          stack.push(brackets[char]);
+        } else if (Object.values(brackets).includes(char)) {
+          if (stack.length === 0 || char !== stack.pop()) {
+            errors.push("Unbalanced or mismatched parentheses.");
+            break;
+          }
+        }
+      }
+      if (stack.length > 0) errors.push("Missing closing parenthesis.");
+
+      const trimmedExpr = expr.trim();
+
+      if (!trimmedExpr.endsWith(";")) {
+        errors.push("Expression should end with a semicolon ';'.");
+      }
+
+      const assignmentMatch = trimmedExpr.match(/^([a-zA-Z_]\w*)\s*=\s*(.+);$/);
+      if (!assignmentMatch) {
+        errors.push("Expression must be an assignment of the form: identifier = expression;");
+      }
+
+      return errors;
+    }
+
+    function showExprErrors(errors) {
+      const errorDiv = document.getElementById("exprErrors");
+      if (errors.length) {
+        errorDiv.style.display = "block";
+        errorDiv.className = "error";
+        errorDiv.innerHTML = errors.map(e => `<p>${e}</p>`).join("");
+        return false;
+      } else {
+        errorDiv.style.display = "block";
+        errorDiv.className = "success";
+        errorDiv.textContent = "Expression syntax looks good!";
+        return true;
+      }
+    }
+
+    function generateParseTree() {
+      const expr = document.getElementById("parseExpression").value.trim();
+      document.getElementById("exprErrors").style.display = "none";
+      d3.select("#tree").selectAll("*").remove();
+
+      const exprErrors = analyzeExpressionSyntax(expr);
+      if (exprErrors.length) {
+        showExprErrors(exprErrors);
+        return;
+      } else {
+        showExprErrors([]);
+      }
+
+      const cleanExpr = expr.replace(/;$/, "").trim();
+      const tokens = cleanExpr.match(/[a-zA-Z_]\w*|[+\-*/=()]/g);
+
+      if (!tokens) {
+        showExprErrors(["No valid tokens found."]);
+        return;
+      }
+
+      function findMainOperator(tokens) {
+        let minPrec = Infinity;
+        let mainOpPos = -1;
+        let parenDepth = 0;
+
+        const precedence = {
+          '=': 0,
+          '+': 1,
+          '-': 1,
+          '*': 2,
+          '/': 2,
+        };
+
+        for (let i = 0; i < tokens.length; i++) {
+          const tok = tokens[i];
+          if (tok === "(") parenDepth++;
+          else if (tok === ")") parenDepth--;
+          else if (parenDepth === 0 && precedence.hasOwnProperty(tok)) {
+            if (precedence[tok] <= minPrec) {
+              minPrec = precedence[tok];
+              mainOpPos = i;
+            }
+          }
+        }
+        return mainOpPos;
+      }
+
+      function buildTree(tokens) {
+        while (
+          tokens[0] === "(" &&
+          tokens[tokens.length - 1] === ")" &&
+          matchingParentheses(tokens)
+        ) {
+          tokens = tokens.slice(1, tokens.length - 1);
+        }
+
+        if (tokens.length === 1) {
+          return { name: tokens[0] };
+        }
+
+        const opPos = findMainOperator(tokens);
+        if (opPos === -1) {
+          return { name: tokens.join(" ") };
+        }
+
+        const node = { name: tokens[opPos], children: [] };
+        node.children.push(buildTree(tokens.slice(0, opPos)));
+        node.children.push(buildTree(tokens.slice(opPos + 1)));
+        return node;
+      }
+
+      function matchingParentheses(tokens) {
+        let count = 0;
+        for (let i = 0; i < tokens.length; i++) {
+          if (tokens[i] === "(") count++;
+          else if (tokens[i] === ")") count--;
+          if (count === 0 && i < tokens.length - 1) return false;
+        }
+        return count === 0;
+      }
+
+      const treeData = buildTree(tokens);
+
+      const svg = d3.select("#tree"),
+        width = parseInt(svg.style("width")) || 900,
+        height = parseInt(svg.style("height")) || 600;
+
+      svg.selectAll("*").remove();
+
+      const margin = { top: 20, right: 90, bottom: 30, left: 90 },
+        innerWidth = width - margin.left - margin.right,
+        innerHeight = height - margin.top - margin.bottom;
+
+      const g = svg
+        .attr("width", width)
+        .attr("height", height)
+        .append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
+
+      const root = d3.hierarchy(treeData);
+      const treeLayout = d3.tree().size([innerHeight, innerWidth]);
+      treeLayout(root);
+
+      g.selectAll(".link")
+        .data(root.links())
+        .join("path")
+        .attr("class", "link")
+        .attr("fill", "none")
+        .attr("stroke", "#555")
+        .attr("stroke-opacity", 0.4)
+        .attr("stroke-width", 1.5)
+        .attr(
+          "d",
+          d3.linkHorizontal().x(d => d.y).y(d => d.x)
+        );
+
+      const node = g.append('g')
+        .attr('stroke-linejoin', 'round')
+        .attr('stroke-width', 3)
+        .selectAll('g')
+        .data(root.descendants())
+        .join('g')
+        .attr('transform', d => `translate(${d.y},${d.x})`);
+
+      node.append('circle')
+        .attr('fill', d => d.children ? "#007BFF" : "#00a000")
+        .attr('r', 15);
+
+      node.append('text')
+        .attr('dy', '0.31em')
+        .attr('x', d => d.children ? -19 : 19)
+        .attr('text-anchor', d => d.children ? "end" : "start")
+        .text(d => d.data.name)
+        .clone(true).lower()
+        .attr('font-size', '26px')
+        .attr('stroke', 'white');
+    }
+  </script>
+</body>
+</html>
