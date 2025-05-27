@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Compiler Visualization - Welcome</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      text-align: center;
+
+      
+      background: linear-gradient(135deg, #e3f2fd, #d0e7ff, #f0f8ff);
+      background-attachment: fixed;
+      background-size: cover;
+    }
+
+    h1 {
+      font-size: 3rem;
+      color: #007bff;
+      margin-bottom: 1rem;
+    }
+
+    .description {
+      max-width: 900px;
+      font-size: 1.1rem;
+      color: #333;
+      background-color: rgba(255, 255, 255, 0.97);
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+    }
+
+    .phases {
+      text-align: left;
+      margin-top: 1.5rem;
+    }
+
+    .phases li {
+      margin: 0.6rem 0;
+      line-height: 1.6;
+    }
+
+    .phases strong {
+      color: #007bff;
+    }
+
+    button {
+      margin-top: 2rem;
+      padding: 0.8rem 2rem;
+      font-size: 1.2rem;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Welcome to Compiler Visualizer</h1>
+
+  <div class="description">
+    <p>
+      A <strong>compiler</strong> is a program that transforms source code written in a high-level language like C or Java into low-level machine code that a computer can execute. This transformation involves several structured stages, each responsible for a specific task in the translation process.
+    </p>
+
+    <p>
+      This tool helps you understand the inner workings of a compiler by visualizing each of its core phases. Here’s a breakdown of what happens at every stage:
+    </p>
+
+    <ul class="phases">
+      <li><strong>1. Lexical Analysis:</strong> Scans the code and converts it into tokens such as identifiers, keywords, numbers, and operators.</li>
+      <li><strong>2. Syntax Analysis:</strong> Analyzes the token sequence to ensure it follows the language’s grammatical structure. Generates a <em>parse tree</em>.</li>
+      <li><strong>3. Semantic Analysis:</strong> Validates the logic of the program—checking data types, undeclared variables, scope rules, etc.—and builds the <em>symbol table</em>.</li>
+      <li><strong>4. Intermediate Code Generation:</strong> Produces a simplified, platform-independent version of the code suitable for further translation.</li>
+      <li><strong>5. Optimization:</strong> (Optional) Improves the efficiency of the intermediate code by eliminating redundancies and improving performance.</li>
+      <li><strong>6. Code Generation:</strong> Converts the optimized code into target machine or assembly code that can be executed by the processor.</li>
+    </ul>
+
+    <p>
+      With this visualizer, you'll be able to see how a simple C program flows through these phases. Let's explore how source code becomes machine-executable!
+    </p>
+
+    <button onclick="startLexical()">Let’s Get Started</button>
+  </div>
+
+  <script>
+    function startLexical() {
+      window.location.href = "welcome.html"; 
+    }
+  </script>
+
+</body>
+</html>

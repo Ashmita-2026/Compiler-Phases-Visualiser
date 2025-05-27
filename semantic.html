@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Semantic Analyzer</title>
+
+  <!-- ✅ Include CodeMirror CSS & JS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/clike/clike.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f9f9f9;
+      padding: 20px;
+
+    }
+    h1 {
+      color:black;
+    }
+    
+    .CodeMirror {
+      height: 200px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+    button {
+      padding: 10px 20px;
+      margin-top: 10px;
+      font-size: 16px;
+      cursor: pointer;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
+    pre {
+      background: #eee;
+      padding: 10px;
+      white-space: pre-wrap;
+      margin-top: 10px;
+    }
+    table {
+      width: 100%;
+      margin-top: 10px;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+    }
+    th {
+      background-color: #f0f0f0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Semantic Analyzer</h1>
+
+  <h2>Enter C Code</h2>
+  <textarea id="codeInput" placeholder="Type or paste your C code here..."></textarea>
+  <button onclick="runSemanticAnalysis()">Run Semantic Analysis</button>
+  <button onclick="continueToNext()">Continue</button>
+  <h2>Semantic Errors</h2>
+  <pre id="semanticOutput"></pre>
+
+  <h2>Symbol Table</h2>
+  <div id="symbolTableOutput"></div>
+
+  <script>
+    let semanticEditor;
+
+    window.onload = () => {
+      semanticEditor = CodeMirror.fromTextArea(document.getElementById("codeInput"), {
+        lineNumbers: true,
+        mode: "text/x-csrc",
+        theme: "eclipse",
+         readOnly: false
+      });
+
+      const storedCode = localStorage.getItem("cCode");
+      if (storedCode) {
+        semanticEditor.setValue(storedCode);
+      }
+    };
+    function continueToNext() {
+    window.location.href = "immediate.html";
+    }
+    function runSemanticAnalysis() {
+      const code = semanticEditor.getValue();
+      const lines = code.split('\n');
+      const declaredVars = {};
+      const symbolTable = [];
+      const errors = [];
+
+      const isString = val => /^".*"$/.test(val);
+      const isChar = val => /^'.{1}'$/.test(val);
+      const isFloat = val => /^[+-]?\d*\.\d+$/.test(val);
+      const isInt = val => /^[+-]?\d+$/.test(val);
+      const isIdentifier = val => /^[a-zA-Z_]\w*$/.test(val);
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line === "" || line.startsWith("//")) continue;
+
+        if (/if\s*\(\s*[^=<>!]+=[^=].*\)/.test(line)) {
+          errors.push(`Line ${i + 1}: Possibly incorrect assignment in 'if' condition. Use '==' instead of '='.`);
+        }
+
+        const declMatch = line.match(/^(int|float|char)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(=\s*[^;]+)?;/);
+        if (declMatch) {
+          const [_, type, name, assignment] = declMatch;
+          if (declaredVars[name]) {
+            errors.push(`Line ${i + 1}: Redeclaration of variable "${name}".`);
+            continue;
+          }
+
+          let value = "";
+          if (assignment) {
+            value = assignment.split("=")[1].trim();
+
+            if (type === "char" && !isChar(value)) {
+              errors.push(`Line ${i + 1}: Type mismatch - expected char but got ${value}.`);
+            } else if (type === "int" && (isFloat(value) || isString(value))) {
+              errors.push(`Line ${i + 1}: Type mismatch - cannot assign ${value} to int.`);
+            } else if (type === "float" && isString(value)) {
+              errors.push(`Line ${i + 1}: Type mismatch - cannot assign string to float.`);
+            }
+          }
+
+          declaredVars[name] = { type, line: i + 1, value };
+          symbolTable.push({ name, type, line: i + 1, value });
+          continue;
+        }
+
+        const assignMatch = line.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*([^;]+);/);
+        if (assignMatch) {
+          const [_, varName, expr] = assignMatch;
+          if (!declaredVars[varName]) {
+            errors.push(`Line ${i + 1}: Variable "${varName}" used before declaration.`);
+            continue;
+          }
+
+          const tokens = expr.split(/[\+\-\*\/]/).map(t => t.trim());
+          for (const token of tokens) {
+            if (isIdentifier(token) && !declaredVars[token] && !isInt(token) && !isFloat(token) && !isChar(token) && !isString(token)) {
+              errors.push(`Line ${i + 1}: Variable "${token}" used before declaration.`);
+            }
+          }
+
+          const varType = declaredVars[varName].type;
+
+          if (varType === "int" && isString(expr)) {
+            errors.push(`Line ${i + 1}: Cannot assign string to int.`);
+          } else if (varType === "char" && !isChar(expr)) {
+            errors.push(`Line ${i + 1}: Cannot assign ${expr} to char.`);
+          } else if (varType === "float" && isString(expr)) {
+            errors.push(`Line ${i + 1}: Cannot assign string to float.`);
+          }
+
+          declaredVars[varName].value = expr;
+          const idx = symbolTable.findIndex(e => e.name === varName);
+          if (idx !== -1) symbolTable[idx].value = expr;
+          continue;
+        }
+
+        const ifCondMatch = line.match(/if\s*\((.*)\)/);
+        if (ifCondMatch) {
+          const condition = ifCondMatch[1];
+          const tokens = condition.split(/[\s<>=!&|()+\-*/]+/).filter(Boolean);
+          for (const token of tokens) {
+            if (isIdentifier(token) && !declaredVars[token]) {
+              errors.push(`Line ${i + 1}: Variable "${token}" used in condition before declaration.`);
+            }
+          }
+        }
+      }
+
+      document.getElementById("semanticOutput").textContent = errors.length
+        ? errors.join('\n')
+        : "No semantic errors found.";
+
+      let tableHTML = `<table><tr><th>Name</th><th>Type</th><th>Line No.</th><th>Value</th></tr>`;
+      symbolTable.forEach(entry => {
+        tableHTML += `<tr><td>${entry.name}</td><td>${entry.type}</td><td>${entry.line}</td><td>${entry.value || ""}</td></tr>`;
+      });
+      tableHTML += `</table>`;
+      document.getElementById("symbolTableOutput").innerHTML = tableHTML;
+
+      // Save code
+      localStorage.setItem("cCode", code);
+    }
+  </script>
+</body>
+</html>
